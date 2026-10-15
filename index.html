@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pi Digit Memorization Game</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4">
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold text-center mb-2 text-blue-400">π Digit Memorization Game</h1>
+  <p class="text-center text-gray-400 text-sm mb-4">Type the digits of π in order — how far can you go?</p>
+
+  <div class="bg-gray-800 rounded p-4 mb-4">
+    <div class="text-xs text-gray-500 mb-2">π = 3.14159265358979323846...</div>
+    <div id="piDisplay" class="font-mono text-sm leading-relaxed break-all"></div>
+  </div>
+
+  <div class="flex gap-3 justify-center mb-4 text-sm">
+    <div class="bg-gray-800 rounded p-3 text-center">
+      <div class="text-xs text-gray-400">Position</div>
+      <div id="pos" class="text-2xl font-bold text-blue-400">0</div>
+    </div>
+    <div class="bg-gray-800 rounded p-3 text-center">
+      <div class="text-xs text-gray-400">Correct</div>
+      <div id="correct" class="text-2xl font-bold text-green-400">0</div>
+    </div>
+    <div class="bg-gray-800 rounded p-3 text-center">
+      <div class="text-xs text-gray-400">High Score</div>
+      <div id="highScore" class="text-2xl font-bold text-yellow-400">0</div>
+    </div>
+    <div class="bg-gray-800 rounded p-3 text-center">
+      <div class="text-xs text-gray-400">Errors</div>
+      <div id="errors" class="text-2xl font-bold text-red-400">0</div>
+    </div>
+  </div>
+
+  <div class="bg-gray-800 rounded p-4 mb-4">
+    <label for="digitInput" class="block text-xs text-gray-400 mb-2">Type the next digit:</label>
+    <input type="text" id="digitInput" maxlength="1" pattern="[0-9]" class="w-full bg-gray-900 border-2 border-gray-600 rounded px-4 py-4 text-4xl font-bold text-center font-mono" aria-label="Type the next digit of pi" autocomplete="off" inputmode="numeric">
+  </div>
+
+  <div id="feedback" class="text-center text-2xl font-bold min-h-10 mb-4"></div>
+
+  <div class="flex gap-2 justify-center">
+    <button onclick="resetGame()" class="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded text-sm">Reset</button>
+    <button onclick="toggleShow()" id="showBtn" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm">Show Reference</button>
+  </div>
+
+  <div id="reference" class="hidden mt-4 bg-gray-800 rounded p-4">
+    <div class="text-xs text-gray-500 mb-2 font-semibold">π first 200 digits:</div>
+    <div class="font-mono text-xs text-green-300 break-all leading-relaxed">
+      3.14159265358979323846264338327950288419716939937510
+      58209749445923078164062862089986280348253421170679
+      82148086513282306647093844609550582231725359408128
+      48111745028410270193852110555964462294895493038196
+    </div>
+  </div>
+</div>
+
+<script>
+// Pi to 200 digits
+const PI = '31415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819';
+
+let position = 0;
+let correctCount = 0;
+let errorCount = 0;
+let highScore = parseInt(localStorage.getItem('pi-highscore') || '0');
+let showingRef = false;
+let gameOver = false;
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function updateDisplay() {
+  document.getElementById('pos').textContent = position;
+  document.getElementById('correct').textContent = correctCount;
+  document.getElementById('errors').textContent = errorCount;
+  document.getElementById('highScore').textContent = highScore;
+
+  // Show pi digits with color coding
+  const display = document.getElementById('piDisplay');
+  let html = '';
+  for (let i = 0; i < Math.min(PI.length, position + 15); i++) {
+    const d = PI[i] === '.' ? '.' : PI[i];
+    let cls = '';
+    if (i < position) cls = 'text-green-400 font-bold';
+    else if (i === position) cls = 'text-white bg-blue-700 rounded px-0.5 animate-pulse';
+    else cls = 'text-gray-600';
+    html += `<span class="${cls}">${d}</span>`;
+  }
+  if (position >= 5) html = '<span class="text-green-400 font-bold">3.</span>' + html;
+  display.innerHTML = '3.' + PI.slice(1, Math.min(PI.length, position + 15)).split('').map((d, i) => {
+    const absI = i + 1;
+    let cls = '';
+    if (absI < position) cls = 'text-green-400 font-bold';
+    else if (absI === position) cls = 'text-white bg-blue-700 rounded px-0.5';
+    else cls = 'text-gray-600';
+    return `<span class="${cls}">${d}</span>`;
+  }).join('');
+}
+
+function handleInput(e) {
+  if (gameOver) return;
+  const val = e.target.value.trim();
+  if (!/^[0-9]$/.test(val)) { e.target.value = ''; return; }
+
+  const expected = PI[position];
+  const correct = val === expected;
+
+  if (correct) {
+    correctCount++;
+    position++;
+    document.getElementById('feedback').textContent = '✓';
+    document.getElementById('feedback').className = 'text-center text-2xl font-bold min-h-10 mb-4 text-green-400';
+    if (correctCount > highScore) {
+      highScore = correctCount;
+      localStorage.setItem('pi-highscore', highScore);
+    }
+    if (position >= PI.length) {
+      document.getElementById('feedback').textContent = '🎉 Amazing! All 200 digits!';
+      gameOver = true;
+    }
+  } else {
+    errorCount++;
+    document.getElementById('feedback').textContent = `✗ Expected: ${expected}`;
+    document.getElementById('feedback').className = 'text-center text-2xl font-bold min-h-10 mb-4 text-red-400';
+    e.target.className = e.target.className.replace('border-gray-600', 'border-red-600');
+    setTimeout(() => {
+      e.target.className = e.target.className.replace('border-red-600', 'border-gray-600');
+    }, 300);
+  }
+
+  e.target.value = '';
+  updateDisplay();
+}
+
+function resetGame() {
+  position = 0; correctCount = 0; errorCount = 0; gameOver = false;
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('digitInput').value = '';
+  document.getElementById('digitInput').focus();
+  updateDisplay();
+}
+
+function toggleShow() {
+  showingRef = !showingRef;
+  document.getElementById('reference').classList.toggle('hidden', !showingRef);
+  document.getElementById('showBtn').textContent = showingRef ? 'Hide Reference' : 'Show Reference';
+}
+
+document.getElementById('digitInput').addEventListener('input', handleInput);
+document.getElementById('digitInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('digitInput').value = '';
+});
+
+updateDisplay();
+document.getElementById('digitInput').focus();
+</script>
+</body>
+</html>
